@@ -7,11 +7,14 @@ extern crate alloc;
 #[cfg(not(feature = "std"))]
 use alloc::{string::String, vec::Vec};
 
+#[cfg(not(feature = "std"))]
+use core::fmt::{Display, Formatter, Result as FmtResult};
+
 #[cfg(feature = "std")]
 extern crate std;
 
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
+use std::{string::String, vec::Vec, fmt::{Display, Formatter, Result as FmtResult}};
 
 use parity_scale_codec::{Decode, Encode};
 use sp_core::{ByteArray, H256};
@@ -45,22 +48,19 @@ impl Encryption {
     }
 }
 
-#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub struct Specs {
-    pub base58prefix: u16,
-    pub color: String,
-    pub decimals: u8,
-    pub encryption: Encryption,
-    pub genesis_hash: H256,
-    pub logo: String,
-    pub name: String,
-    pub path_id: String,
-    pub secondary_color: String,
-    pub title: String,
-    pub unit: String,
+impl Display for Encryption {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let text = match &self {
+            Self::Ed25519 => "Ed25519",
+            Self::Sr25519 => "Sr25519",
+            Self::Ecdsa => "Ecdsa",
+        };
+        write!(f, "{}", text)
+   }
 }
 
 #[derive(Debug, Decode, Encode)]
+#[repr(C)]
 pub struct TransferData {
     pub encoded_data: Vec<u8>,
     pub companion_signature: Vec<u8>,
@@ -80,51 +80,29 @@ pub enum TransmittableContent {
 
     #[codec(index = 3)]
     SignableTransaction(Transaction),
-
-    #[codec(index = 128)]
-    SizedTransfer(Vec<u8>), // to be retired
-
-    #[codec(index = 129)]
-    Specs(SpecsValue), // to be retired
-
-    #[codec(index = 130)]
-    SpecsSet(Vec<SpecsValue>), // to be retired
 }
 
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 pub enum MultiSigner {
+    #[codec(index = 0)]
     Ed25519(sp_core::ed25519::Public),
+
+    #[codec(index = 1)]
     Sr25519(sp_core::sr25519::Public),
+
+    #[codec(index = 2)]
     Ecdsa(sp_core::ecdsa::Public),
 }
 
-#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub enum MultiSignature {
-    Ed25519(sp_core::ed25519::Signature),
-    Sr25519(sp_core::sr25519::Signature),
-    Ecdsa(sp_core::ecdsa::Signature),
-}
-
-#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub struct SpecsValue {
-    pub specs: Specs,
-    pub specs_signer: MultiSigner,
-    pub specs_signature: MultiSignature,
-}
-
-#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub struct SpecsKey {
-    pub encryption: Encryption,
-    pub genesis_hash: H256,
-}
-
 #[derive(Debug, Decode, Encode, Eq, PartialEq)]
+#[repr(C)]
 pub struct Bytes {
     pub bytes_uncut: Vec<u8>,
     pub signer: MultiSigner,
 }
 
 #[derive(Debug, Decode, Encode, Eq, PartialEq)]
+#[repr(C)]
 pub struct Transaction {
     pub genesis_hash: H256,
     pub encoded_short_meta: Vec<u8>,
@@ -133,6 +111,7 @@ pub struct Transaction {
 }
 
 #[derive(Debug, Decode, Encode, Eq, PartialEq)]
+#[repr(C)]
 pub struct DerivationInfo {
     pub cut_path: String,
     pub has_pwd: bool,
